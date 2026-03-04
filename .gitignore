@@ -1,0 +1,6 @@
+# Ignore everything
+*
+
+# Except the analysis report and this gitignore
+!FULL_ANALYSIS_REPORT.md
+!.gitignore
