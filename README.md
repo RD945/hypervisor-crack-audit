@@ -281,14 +281,17 @@ EfiGuard offers two DSE bypass methods:
 - Allows setting `g_CiEnabled` / `g_CiOptions` to any value from user mode -- effectively an arbitrary kernel read/write backdoor
 - The string `roodkcaBdrauGifE` found in the binary is "EfiGuardBackdoor" reversed -- this is the marker GUID name
 
-### 5.3 Why EfiGuard Is Necessary for This Crack
+### 5.3 Why EfiGuard Is Included (But Not Required)
 
-Without EfiGuard:
-- `hyperkd.sys` and `SimpleSvm.sys` are **unsigned kernel drivers** -- Windows refuses to load them (DSE blocks it)
-- Even if you force-load them via test signing, **PatchGuard** detects the kernel modifications made by `hyperkd.sys` and triggers a BSOD within minutes
-- EfiGuard solves both: DSE off = drivers load, PatchGuard off = no BSOD from kernel modifications
+EfiGuard is presented by the NFO as the **easy alternative** to manually disabling security features. The NFO lists two options:
 
-**The NFO file confirms this:** *"Or you can use EfiGuard to avoid disabling all of them <3, it's easy and quick."*
+**Option A (Manual):** Enable test signing (`bcdedit /set testsigning on`), disable Hyper-V, disable Secure Boot, disable HVCI/memory integrity, disable Credential Guard. This handles DSE so the unsigned drivers can load. PatchGuard is not a problem here because the hypervisor-level spoofing (SimpleSvm at ring -1) creates split memory views via nested page tables -- PatchGuard checks real kernel memory at ring 0 and sees it untouched, while the game process sees spoofed values through the hypervisor.
+
+**Option B (EfiGuard):** Boot from the EfiGuard USB and it automatically disables DSE, PatchGuard, and VBS in one step, without needing to manually change any Windows settings.
+
+**The NFO file confirms EfiGuard is optional:** *"Or you can use EfiGuard to avoid disabling all of them <3, it's easy and quick."*
+
+EfiGuard is the more thorough approach (it also disables PatchGuard as an extra safety net), but the manual method works because the critical spoofing happens at the hypervisor level where PatchGuard cannot see it.
 
 ### 5.4 EfiGuard Limitations
 
@@ -907,7 +910,7 @@ Step 5: re9.exe loads steamclient64.dll from the Goldberg emulator. Steam authen
 
 Step 6: re9.exe's startup code detects the CPU type and checks for AMD SVM (Secure Virtual Machine) support.
 
-Step 7: The game loader installs hyperkd.sys as a kernel service by calling CreateService with SERVICE_KERNEL_DRIVER type and then calling StartService. Because EfiGuard has already disabled DSE, the unsigned driver loads successfully without being blocked.
+Step 7: The game loader installs hyperkd.sys as a kernel service by calling CreateService with SERVICE_KERNEL_DRIVER type and then calling StartService. Because DSE has been disabled (either by EfiGuard or by enabling test signing mode), the unsigned driver loads successfully without being blocked.
 
 Step 8: hyperkd.sys initializes in kernel space. It calls VmFuncInitVmm() to activate the SimpleSvm.sys hypervisor on all CPU cores. The VMRUN instruction executes and Windows becomes a guest VM. CPUID interception becomes active. PsSetCreateProcessNotifyRoutine registers callbacks for process creation and exit events. The CounterUpdater background thread starts and KUSER_SHARED_DATA spoofing begins.
 
@@ -915,13 +918,13 @@ Step 9: Denuvo Anti-Tamper initialization runs inside re9.exe and performs its e
 
 Step 10: Denuvo validation passes and the game runs normally. VMProtect-obfuscated code executes without issues, Capcom Anti-Tamper checks pass, and the game is fully playable.
 
-Step 11: When the user closes the game, ProcessExitCleanup fires in hyperkd.sys. StopCounterThread terminates the KUSER spoofing thread. VmFuncUninitVmm devirtualizes all CPU cores and shuts down the hypervisor. KUSER_SHARED_DATA is restored to its real values. The system returns to normal operation, though DSE and PatchGuard remain disabled until the EfiGuard boot entry is removed and a clean boot is performed.
+Step 11: When the user closes the game, ProcessExitCleanup fires in hyperkd.sys. StopCounterThread terminates the KUSER spoofing thread. VmFuncUninitVmm devirtualizes all CPU cores and shuts down the hypervisor. KUSER_SHARED_DATA is restored to its real values. The system returns to normal operation, though the security features disabled during setup (DSE via test signing, or DSE + PatchGuard via EfiGuard) remain disabled until the relevant settings are re-enabled or a clean boot without EfiGuard is performed.
 
 ### 10.3 Why Each Component Is Necessary (None Can Be Removed)
 
 | If You Remove... | What Happens |
 |-----------------|-------------|
-| EfiGuard | hyperkd.sys and SimpleSvm.sys cannot load (DSE blocks unsigned drivers). If test-signing is used instead, PatchGuard detects kernel modifications -- BSOD |
+| EfiGuard (if not using manual method) | DSE must be disabled another way (e.g., test signing mode). The manual method from the NFO works as an alternative because hypervisor-level spoofing via SimpleSvm evades PatchGuard by operating at ring -1. EfiGuard provides extra safety by also disabling PatchGuard, but it is not strictly required |
 | SimpleSvm.sys | No hypervisor = no CPUID interception. Denuvo detects the analysis environment -- refuses to run |
 | hyperkd.sys | No KUSER spoofing, no orchestration. Denuvo's environment checks fail -- game crashes/refuses to start |
 | ColdClientLoader + Goldberg | Steam APIs return errors. Game can't authenticate with "Steam" -- refuses to launch |
