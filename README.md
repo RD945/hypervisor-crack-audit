@@ -9,7 +9,7 @@
 
 **Source Files Download:** [https://file-me.top/kpypgyn3k47v.html](https://file-me.top/kpypgyn3k47v.html)
 
-**Disclaimer:** This analysis was conducted as a personal learning exercise by a student. It is not a professional security assessment and should not be treated as one. The findings documented here represent a best-effort analysis using freely available tools, but may contain errors, misinterpretations, or omissions. Please wait for analysis from official or more experienced sources before making any security decisions based on this document.
+**Disclaimer:** I am not an expert like the crack developers or CSRIN mods. Please don't take this as any official guide, I am just showing my findings of how Denuvo is being bypassed using this method.
 
 ---
 
