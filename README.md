@@ -102,10 +102,10 @@ Denuvo is a commercial anti-tamper technology by Denuvo Software Solutions GmbH 
 **Hardware-Bound Token System:**
 - At specific trigger points during gameplay, Denuvo contacts online activation servers
 - The server issues a time-limited **hardware-fingerprinted token** bound to:
- - CPU ID (CPUID instruction results)
- - Disk serial numbers
- - Windows installation ID
- - Motherboard identifiers
+   - CPU ID (CPUID instruction results)
+   - Disk serial numbers
+   - Windows installation ID
+   - Motherboard identifiers
 - These tokens are checked at runtime; without valid tokens, protected code blocks fail
 
 **Anti-Analysis Detection (what the hypervisor must defeat):**
@@ -150,29 +150,29 @@ Finally, at Ring 3 (User Mode), ColdClientLoader launches the game executable (r
 When Denuvo executes a check inside the game process:
 
 1. **Denuvo calls `CPUID`** to check if a hypervisor is present
- -- SimpleSvm.sys **intercepts** this at ring -1
- -- Returns modified results: clears the hypervisor-present bit, returns `AuthenticAMD` vendor string
- -- Denuvo sees: "No hypervisor, real AMD CPU"
+   - SimpleSvm.sys **intercepts** this at ring -1
+   - Returns modified results: clears the hypervisor-present bit, returns `AuthenticAMD` vendor string
+   - Denuvo sees: "No hypervisor, real AMD CPU"
 
 2. **Denuvo reads `KUSER_SHARED_DATA`** at `0x7FFE0000`
- -- hyperkd.sys has **spoofed the values** in kernel memory
- -- Denuvo sees: "Normal Windows environment"
+   - hyperkd.sys has **spoofed the values** in kernel memory
+   - Denuvo sees: "Normal Windows environment"
 
 3. **Denuvo calls `RDTSC`** for timing checks
- -- SimpleSvm.sys can intercept TSC reads via VMCB control bits
- -- Returns consistent timing values that don't indicate single-stepping
+   - SimpleSvm.sys can intercept TSC reads via VMCB control bits
+   - Returns consistent timing values that don't indicate single-stepping
 
 4. **Denuvo checks `KdDebuggerNotPresent`**
- -- hyperkd.sys patches this kernel variable
- -- Denuvo sees: "No kernel debugger attached"
+   - hyperkd.sys patches this kernel variable
+   - Denuvo sees: "No kernel debugger attached"
 
 5. **Denuvo validates its Steam integration**
- -- Goldberg emulator's `steamclient64.dll` responds to all ISteam* API calls
- -- Returns valid-looking app ownership, user identity, ticket data
+   - Goldberg emulator's `steamclient64.dll` responds to all ISteam* API calls
+   - Returns valid-looking app ownership, user identity, ticket data
 
 6. **Denuvo's unsigned driver checks would normally trigger PatchGuard BSOD**
- -- EfiGuard disabled PatchGuard at boot time
- -- System remains stable despite kernel modifications
+   - EfiGuard disabled PatchGuard at boot time
+   - System remains stable despite kernel modifications
 
 
 ---
@@ -445,11 +445,11 @@ The AMD SVM hypervisor works by:
 2. **Creating a VMCB** (Virtual Machine Control Block) for each core -- this is a hardware-defined data structure that controls what the hypervisor intercepts
 3. **Calling VMRUN** -- this transfers control to the hypervisor. The OS becomes a "guest"
 4. **On each CPUID instruction in guest mode:**
- - The CPU triggers a `#VMEXIT` -- control transfers to SimpleSvm
- - SimpleSvm examines the CPUID leaf being queried
- - For leaf 0x1: **Clears ECX bit 31** (hypervisor-present flag) before returning
- - For leaf 0x40000000-0x400000FF: Returns vendor info as if no hypervisor exists
- - For other leaves: Passes through unmodified
+   - The CPU triggers a `#VMEXIT` -- control transfers to SimpleSvm
+   - SimpleSvm examines the CPUID leaf being queried
+   - For leaf 0x1: **Clears ECX bit 31** (hypervisor-present flag) before returning
+   - For leaf 0x40000000-0x400000FF: Returns vendor info as if no hypervisor exists
+   - For other leaves: Passes through unmodified
 5. **On VMRUN in guest mode:** Injects `#GP` (General Protection Fault) -- prevents any nested hypervisor from running
 6. **On EFER MSR writes:** Prevents the guest from clearing SVME bit (so it can't escape the hypervisor)
 
@@ -514,9 +514,9 @@ ManufacturerName="<Your manufacturer name>" ;TODO: Replace with your manufacture
 **Key observations from the INF:**
 
 1. **Name mismatch:** The INF references `hyperlog.sys` throughout, but the actual binary is named `hyperkd.sys`. This means:
- - The INF cannot install the driver through normal Plug-and-Play
- - The driver is loaded **programmatically** via `CreateService()`/`StartService()` by the game loader
- - The NFO confirms: *"The game will load the driver automatically"*
+   - The INF cannot install the driver through normal Plug-and-Play
+   - The driver is loaded **programmatically** via `CreateService()`/`StartService()` by the game loader
+   - The NFO confirms: *"The game will load the driver automatically"*
 
 2. **Unfinished template:** Contains `; TODO:` placeholders and `<Your manufacturer name>` -- this was generated from the Visual Studio WDF Kernel Mode Driver project template and never cleaned up
 
@@ -656,25 +656,27 @@ Based on the extracted strings, API imports, and NFO credits, here is the recons
 
 1. **Game loader calls `CreateService()`** to register `hyperkd.sys` as a kernel service
 2. **`hyperkd.sys` loads and:**
- a. Detects CPU type (AMD -- SVM path)
- b. Calls `VmFuncInitVmm` to initialize the hypervisor (loads SimpleSvm.sys or its own embedded hypervisor)
- c. Registers `PsSetCreateProcessNotifyRoutine` callback to watch for `re9.exe` process creation
+   - Detects CPU type (AMD -- SVM path)
+   - Calls `VmFuncInitVmm` to initialize the hypervisor (loads SimpleSvm.sys or its own embedded hypervisor)
+   - Registers `PsSetCreateProcessNotifyRoutine` callback to watch for `re9.exe` process creation
+
 3. **When re9.exe starts:**
- a. `NotifyRoutineActive` flag is set
- b. `PsCreateSystemThread` creates the `CounterUpdater` kernel thread
- c. The `CounterUpdater` continuously updates spoofed values in KUSER_SHARED_DATA
- d. Uses `KeStackAttachProcess` to attach to re9.exe's address space for process-specific modifications
+   - `NotifyRoutineActive` flag is set
+   - `PsCreateSystemThread` creates the `CounterUpdater` kernel thread
+   - The `CounterUpdater` continuously updates spoofed values in KUSER_SHARED_DATA
+   - Uses `KeStackAttachProcess` to attach to re9.exe's address space for process-specific modifications
 4. **While the game runs:**
- - HyperDbg-derived scripting engine runs event-based interception scripts
- - CPUID intercepts return spoofed values (no hypervisor detected)
- - RDTSC/RDTSCP intercepts return consistent timing values
- - KUSER_SHARED_DATA is continuously maintained with "normal" values
- - `KdDebuggerNotPresent` is kept set to TRUE
+   - HyperDbg-derived scripting engine runs event-based interception scripts
+   - CPUID intercepts return spoofed values (no hypervisor detected)
+   - RDTSC/RDTSCP intercepts return consistent timing values
+   - KUSER_SHARED_DATA is continuously maintained with "normal" values
+   - `KdDebuggerNotPresent` is kept set to TRUE
+
 5. **When re9.exe exits:**
- - `ProcessExitCleanup` fires
- - `StopCounterThread` terminates the counter updater
- - `VmFuncUninitVmm` shuts down the hypervisor
- - KUSER_SHARED_DATA is restored to real values
+   - `ProcessExitCleanup` fires
+   - `StopCounterThread` terminates the counter updater
+   - `VmFuncUninitVmm` shuts down the hypervisor
+   - KUSER_SHARED_DATA is restored to real values
 
 
 ---
@@ -865,9 +867,9 @@ The user must do ONE of these before anything works:
 2. Copy EfiGuard files to a FAT32 USB drive at `/EFI/Boot/`
 3. Boot from USB -- EfiGuard's `bootx64.efi` loads -- starts `EfiGuardDxe.efi`
 4. EfiGuard automatically:
- - Patches `bootmgfw.efi` (allows modified boot chain)
- - Patches `winload.efi` (optional VBS disable)
- - Patches `ntoskrnl.exe` (disables PatchGuard + DSE)
+   - Patches `bootmgfw.efi` (allows modified boot chain)
+   - Patches `winload.efi` (optional VBS disable)
+   - Patches `ntoskrnl.exe` (disables PatchGuard + DSE)
 5. Windows boots normally, but with PatchGuard and DSE silently disabled
 
 ### 10.2 Game Launch Sequence (Every Time)
