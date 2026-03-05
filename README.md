@@ -1,4 +1,4 @@
-﻿# Comprehensive Security Audit & Technical Analysis
+﻿# Comprehensive Security Audit for my college project
 ## Resident.Evil.Requiem.HYPERVISOR.V2-KIRIGIRI
 
 **Audit Date:** March 4, 2026
